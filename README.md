@@ -11,7 +11,7 @@ the USB-UART bridge to the UART1 pins of the DUT.
 
 The firmware project used \in-dev_hci_ver0x16\proj\misc\proj_ate_test_hci_no_os\build\mdk\proj_trx_test_hci. The
 binary file output from that project is downloaded to the DUT using the 'inplay_programmer.exe' application. Be
-sure that the 2 filed 'JTAGDLL.dll' and 'UARTDLL.dll' are in the same location as the 'inplay_programmer.exe' directory
+sure that the 2 files 'JTAGDLL.dll' and 'UARTDLL.dll' are in the same location as the 'inplay_programmer.exe' directory
 when it is executed.
 The programmer must download a binary (.bin) image to the DUT's memory.
 

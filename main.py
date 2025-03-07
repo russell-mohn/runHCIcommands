@@ -16,7 +16,7 @@
 # This script was also used with the IN6XX series development kit DK Version D0-07102021.
 # It is not necessary to use the Jlink SWD interface to interact with the DUT in this setup. All the necessary
 # communication is done over the UART. The USB to UART1 is used for the communication.
-# If using the IN628 F0 Series DK, it is necessary to put 3 jumpers on H16.UART1, to connect the VDD, RX, and TX from
+# If using the IN628 F0 Series DK, it is necessary to put 3 jumpers on H16.UART1, to connect the GND, RX, and TX from
 # the USB-UART bridge to the UART1 pins of the DUT.
 #
 # The firmware project used \in-dev_hci_ver0x16\proj\misc\proj_ate_test_hci_no_os\build\mdk\proj_trx_test_hci. The
@@ -46,8 +46,9 @@ import time
 
 # Configure the serial port
 #SERIAL_PORT = "COM8"    # Change to the correct port (eg "/dev/cu.*" on MacOS)
-#SERIAL_PORT = "COM9"    # Change to the correct port (eg "/dev/cu.*" on MacOS)
-SERIAL_PORT = "COM10"    # Change to the correct port (eg "/dev/cu.*" on MacOS)
+SERIAL_PORT = "COM9"    # Change to the correct port (eg "/dev/cu.*" on MacOS)
+#SERIAL_PORT = "COM10"    # Change to the correct port (eg "/dev/cu.*" on MacOS)
+#SERIAL_PORT = "COM11"    # Change to the correct port (eg "/dev/cu.*" on MacOS)
 BAUD_RATE = 115200      # Typical for HCI UART
 
 # RF channel (0x00 - 0x27, corresponds to 2402 MHz - 2480 MHz in 2 MHz steps)
@@ -93,7 +94,7 @@ ADDRESS_BYTE2               = (ADDRESS >> 16) & 0xFF
 ADDRESS_BYTE3               = (ADDRESS >> 24) & 0xFF
 
 HCI_READ_REGISTER           = bytes([0x01, 0x0E, 0xFC, 0x04, ADDRESS_BYTE0, ADDRESS_BYTE1, ADDRESS_BYTE2, ADDRESS_BYTE3])
-HCI_WRITE_REGISTER          = bytearray([0x01, 0x0F, 0xFC, 0x08])
+HCI_WRITE_REGISTER          = bytearray([0x01, 0x0F, 0xFC, 0x08])  # HCI_WRITE_REGISTER will have 12 elements total
 HCI_WRITE_REGISTER.append(ADDRESS_BYTE0)
 HCI_WRITE_REGISTER.append(ADDRESS_BYTE1)
 HCI_WRITE_REGISTER.append(ADDRESS_BYTE2)
@@ -126,10 +127,8 @@ try:
 
         print(f"Sending HCI_READ_REGISTER {HCI_READ_REGISTER.hex()} to {ADDRESS:#x}...")
         response = send_hci_command(ser, HCI_READ_REGISTER, expected_response_length=11)
-        #reg_val = int.from_bytes(response[7:11], byteorder='little')
         #reg_val = response[10:6:-1]
         reg_val = response[7:11]
-        print("Received:", response.hex())
         print("reg_val.hex():", reg_val.hex())
 
         HCI_WRITE_REGISTER.append(0x24)     # lower [2:0] represent LNA bias, 0: lowest current, 4: default, 7: highest current (lowest NF)
@@ -142,28 +141,62 @@ try:
         response = send_hci_command(ser, HCI_WRITE_REGISTER)
         print("Received:", response.hex())
 
+        print(f"Sending HCI_READ_REGISTER {HCI_READ_REGISTER.hex()} to {ADDRESS:#x}...")
+        response = send_hci_command(ser, HCI_READ_REGISTER, expected_response_length=11)
+        #reg_val = response[10:6:-1]
+        reg_val = response[7:11]
+        print("Received:", response.hex())
+        print("reg_val.hex():", reg_val.hex())
+
         print(f"Sending HCI_LE_RECEIVER_TEST command on channel {RF_CHANNEL}...")
         response = send_hci_command(ser, HCI_LE_RECEIVER_TEST)
         print("Received:", response.hex())
-
         # Let the test run for a few seconds
         print(f"Receiving packets for {test_duration} seconds...")
         time.sleep(test_duration)
-
         # Send HCI LE Test End command
         print("Sending HCI_LE_TEST_END and retrieving packet count...")
         response = send_hci_command(ser, HCI_LE_TEST_END, expected_response_length=9)
         print("Received:", response.hex())
 
+        HCI_WRITE_REGISTER[8] = 0x27        #set LNA bias to 7
+        print(f"Sending HCI_WRITE_REGISTER {HCI_WRITE_REGISTER}...")
+        response = send_hci_command(ser, HCI_WRITE_REGISTER)
+        print("Received:", response.hex())
+
+        print(f"Sending HCI_READ_REGISTER {HCI_READ_REGISTER.hex()} to {ADDRESS:#x}...")
+        response = send_hci_command(ser, HCI_READ_REGISTER, expected_response_length=11)
+        reg_val = response[7:11]
+        print("reg_val.hex():", reg_val.hex())
+
+        print(f"Sending HCI_LE_RECEIVER_TEST command on channel {RF_CHANNEL}...")
+        response = send_hci_command(ser, HCI_LE_RECEIVER_TEST)
+        print("Received:", response.hex())
+        # Let the test run for a few seconds
+        print(f"Receiving packets for {test_duration} seconds...")
+        time.sleep(test_duration)
+        # Send HCI LE Test End command
+        print("Sending HCI_LE_TEST_END and retrieving packet count...")
+        response = send_hci_command(ser, HCI_LE_TEST_END, expected_response_length=9)
+        print("Received:", response.hex())
+
+        HCI_WRITE_REGISTER[8] = 0x24        #set LNA bias back to 4
+        print(f"Sending HCI_WRITE_REGISTER {HCI_WRITE_REGISTER}...")
+        response = send_hci_command(ser, HCI_WRITE_REGISTER)
+        print("Received:", response.hex())
+
+        print(f"Sending HCI_READ_REGISTER {HCI_READ_REGISTER.hex()} to {ADDRESS:#x}...")
+        response = send_hci_command(ser, HCI_READ_REGISTER, expected_response_length=11)
+        reg_val = response[7:11]
+        print("reg_val.hex():", reg_val.hex())
+
         print(f"Sending HCI_LE_ENH_RX_TEST command on channel {RF_CHANNEL}...")
         response = send_hci_command(ser, HCI_LE_ENH_RX_TEST)
         print("Received:", response.hex())
-
         # Let the test run for a few seconds
         test_duration = 5  # Adjust as needed
         print(f"Receiving packets for {test_duration} seconds...")
         time.sleep(test_duration)
-
         # Send HCI LE Test End command
         print("Sending HCI_LE_TEST_END and retrieving packet count...")
         response = send_hci_command(ser, HCI_LE_TEST_END, expected_response_length=9)
@@ -179,7 +212,6 @@ try:
         print("Received:", response.hex())
         print(f"Transmitting on channel {RF_CHANNEL} for {test_duration} seconds...")
         time.sleep(test_duration)
-
         print("Sending HCI_LE_TEST_END command")
         response = send_hci_command(ser, HCI_LE_TEST_END, expected_response_length=8)
         print("Received:", response.hex())
@@ -194,7 +226,6 @@ try:
         print("Received:", response.hex())
         print(f"Transmitting on channel {RF_CHANNEL} for {test_duration} seconds...")
         time.sleep(test_duration)
-
         print("Sending HCI_LE_TEST_END command...")
         response = send_hci_command(ser, HCI_LE_TEST_END, expected_response_length=8)
         print("Received:", response.hex())
